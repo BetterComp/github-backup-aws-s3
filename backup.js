@@ -8,8 +8,6 @@ const github = new GitHubApi()
 const requiredOptions = [
   "githubAccessToken",
   "s3BucketName",
-  "s3AccessKeyId",
-  "s3AccessSecretKey"
 ]
 
 module.exports = function(options) {
@@ -62,10 +60,7 @@ module.exports = function(options) {
     console.log("-------------------------------------------------")
 
     const date = new Date().toISOString()
-    const s3 = new aws.S3({
-      accessKeyId: options.s3AccessKeyId,
-      secretAccessKey: options.s3AccessSecretKey
-    })
+    const s3 = new aws.S3()
 
     const uploader = Promise.promisify(s3.upload.bind(s3))
     const tasks = repos.map(repo => {
@@ -73,11 +68,12 @@ module.exports = function(options) {
       const arhiveURL =
         "https://api.github.com/repos/" +
         repo.full_name +
-        "/tarball/master?access_token=" +
-        options.githubAccessToken
+        "/tarball/"
       const requestOptions = {
         url: arhiveURL,
         headers: {
+          Accept: "application/vnd.github.v3+json",
+          Authorization: `token ${options.githubAccessToken}`,
           "User-Agent": "nodejs"
         }
       }

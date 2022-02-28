@@ -1,0 +1,58 @@
+service: github-backup-aws-s3-service
+
+frameworkVersion: '2'
+variablesResolutionMode: 20210326
+
+provider:
+  name: aws
+  runtime: nodejs14.x
+  timeout: 300
+  lambdaHashingVersion: 20201221
+  iam:
+    role:
+      statements:
+        - Effect: 'Allow'
+          Action:
+            - 's3:ListBucket'
+          Resource:
+            Fn::Join:
+              - ''
+              - - 'arn:aws:s3:::'
+                - !Ref S3BucketForRepo
+        - Effect: 'Allow'
+          Action:
+            - 's3:PutObject'
+          Resource:
+            Fn::Join:
+              - ''
+              - - 'arn:aws:s3:::'
+                - !Ref S3BucketForRepo
+                - '/*'
+
+resources: # CloudFormation template syntax
+  Resources:
+    S3BucketForRepo:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: bettercomp-org-github-backup-${sls:stage}
+        BucketEncryption:
+          ServerSideEncryptionConfiguration:
+            - ServerSideEncryptionByDefault:
+                SSEAlgorithm: 'AES256'
+        Tags:
+          - Key: Environment
+            Value: ${sls:stage}
+          - Key: owner
+            Value: bettercomp
+
+functions:
+  runBackup:
+    handler: handler.runBackup
+    environment:
+      BACKUP_MODE: organisation
+      GITHUB_ORGANISATION: BetterComp
+      GITHUB_ACCESS_TOKEN: ${env:GITHUB_ACCESS_TOKEN}
+      AWS_S3_BUCKET_NAME:
+        Ref: S3BucketForRepo
+    events:
+      - schedule: ${opt:schedule-expression, 'cron(0 5 * * ? *)'} # http://docs.aws.amazon.com/AmazonCloudWatch/latest/events/ScheduledEvents.html
